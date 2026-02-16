@@ -1,14 +1,474 @@
 <!doctype html>
-<html lang="en">
+<html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hello World</title>
-  <link href='/style.css' rel='stylesheet'>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>오늘의 운세 - 카드 스와이프</title>
+  <style>
+    :root{
+      --bg:#0b0f1a; --card:#121a2b; --text:#e7ecff; --muted:#aab3d6;
+      --accent:#7aa2ff; --line:rgba(255,255,255,.10);
+      --shadow: 0 14px 40px rgba(0,0,0,.38);
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans KR", Arial, sans-serif;
+      background: radial-gradient(1000px 600px at 20% 10%, rgba(122,162,255,.18), transparent 55%),
+                  radial-gradient(900px 550px at 90% 40%, rgba(177,140,255,.16), transparent 60%),
+                  linear-gradient(180deg, #070a12, var(--bg));
+      color:var(--text);
+    }
+    .wrap{ max-width: 860px; margin: 0 auto; padding: 22px 16px 44px; }
+    .top{ display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    h1{ margin:0; font-size: 26px; letter-spacing:-0.4px; }
+    .badge{ font-size: 12px; color: rgba(231,236,255,.88); border:1px solid rgba(122,162,255,.20);
+      padding:6px 10px; border-radius:999px; background: rgba(122,162,255,.10); }
+    .sub{ margin: 10px 0 18px; color: var(--muted); line-height: 1.45; }
+    .panel{
+      background: rgba(18,26,43,.92);
+      border: 1px solid rgba(122,162,255,.18);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+    .label{ display:block; font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+    .birthRow{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .seg{
+      display:flex; align-items:center; gap:8px;
+      padding: 10px 12px; border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(12,18,34,.75);
+    }
+    .seg input{
+      width: 4ch; max-width: 74px;
+      background: transparent; border: none; outline: none;
+      color: var(--text); font-size: 18px; font-weight: 800;
+      letter-spacing: 0.5px;
+      text-align: center;
+    }
+    .seg input.mm, .seg input.dd{ width: 2.8ch; max-width: 56px; }
+    .sep{ color: rgba(170,179,214,.9); font-weight: 700; }
+    .btn{
+      border: none; cursor: pointer;
+      padding: 12px 14px; border-radius: 14px;
+      background: linear-gradient(90deg, #5b8cff, #8a6bff);
+      color:#0b0f1a; font-weight: 900; font-size: 15px;
+    }
+    .btn:active{ transform: translateY(1px); }
+    .hint{ margin-top: 8px; font-size: 12px; color: rgba(170,179,214,.85); }
+    .error{ margin-top: 10px; color: #ff6b6b; font-size: 13px; display:none; }
+
+    /* Swipe carousel */
+    .result{ margin-top: 16px; display:none; }
+    .carouselWrap{ margin-top: 14px; position: relative; }
+    .carousel{
+      display:flex; gap: 12px;
+      overflow-x:auto; scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      padding: 4px 4px 12px;
+      scrollbar-width: none;
+    }
+    .carousel::-webkit-scrollbar{ display:none; }
+    .card{
+      min-width: min(560px, 92%);
+      scroll-snap-align: center;
+      background: rgba(12,18,34,.88);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: 0 10px 26px rgba(0,0,0,.30);
+      user-select: none;
+    }
+    .cardTop{ display:flex; align-items:baseline; justify-content:space-between; gap: 10px; }
+    .card h2{ margin:0; font-size: 16px; letter-spacing:-0.2px; }
+    .score{ font-size: 22px; font-weight: 900; letter-spacing:-0.3px; }
+    .desc{ margin-top: 10px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .meta{
+      display:flex; gap:10px; flex-wrap:wrap;
+      margin-top: 14px;
+    }
+    .pill{
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(12,18,34,.55);
+      border-radius: 999px;
+      padding: 8px 10px;
+      font-size: 13px;
+      color: rgba(231,236,255,.92);
+    }
+    .dot{ display:inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: -1px; margin-right: 8px; border: 1px solid rgba(255,255,255,.28); }
+
+    .navBtns{
+      display:flex; justify-content:space-between; gap: 10px;
+      margin-top: 10px;
+    }
+    .navBtns button{
+      flex: 1;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      color: rgba(231,236,255,.92);
+      border-radius: 14px;
+      padding: 10px 12px;
+      font-weight: 800;
+      cursor:pointer;
+    }
+    .dots{ display:flex; justify-content:center; gap:8px; margin-top: 10px; }
+    .dots span{
+      width: 8px; height: 8px; border-radius: 999px;
+      background: rgba(170,179,214,.30);
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .dots span.active{ background: rgba(122,162,255,.95); border-color: rgba(122,162,255,.95); }
+
+    .headline{
+      margin-top: 12px;
+      background: rgba(122,162,255,.10);
+      border: 1px solid rgba(122,162,255,.20);
+      border-radius: 14px;
+      padding: 12px 12px;
+      color: rgba(231,236,255,.95);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .footer{ margin-top: 14px; font-size: 12px; color: rgba(170,179,214,.75); line-height:1.45; }
+  </style>
 </head>
 <body>
-  <h1>Hello, world!</h1>
-  <button onclick="console.log('hello');">Press me</button>
-  <script defer type="text/javascript" src="/main.js"></script>
+  <div class="wrap">
+    <div class="top">
+      <h1>오늘의 운세</h1>
+      <div class="badge" id="todayBadge"></div>
+    </div>
+    <div class="sub">생일을 <b>숫자만</b> 입력하면, 결과가 <b>카드 스와이프</b>로 나옵니다.</div>
+
+    <div class="panel">
+      <label class="label">생일 입력</label>
+      <div class="birthRow">
+        <div class="seg" aria-label="생일 입력">
+          <input id="yy" inputmode="numeric" pattern="[0-9]*" autocomplete="bday-year" maxlength="4" placeholder="YYYY" />
+          <span class="sep">/</span>
+          <input id="mm" class="mm" inputmode="numeric" pattern="[0-9]*" autocomplete="bday-month" maxlength="2" placeholder="MM" />
+          <span class="sep">/</span>
+          <input id="dd" class="dd" inputmode="numeric" pattern="[0-9]*" autocomplete="bday-day" maxlength="2" placeholder="DD" />
+        </div>
+        <button class="btn" id="btn">운세 보기</button>
+      </div>
+      <div class="hint">팁: 자리수가 채워지면 자동으로 다음 칸으로 이동해요. (백스페이스로 이전 칸)</div>
+      <div class="error" id="err"></div>
+
+      <div class="result" id="result">
+        <div class="headline" id="headline"></div>
+
+        <div class="carouselWrap">
+          <div class="carousel" id="carousel">
+            <!-- cards injected -->
+          </div>
+
+          <div class="dots" id="dots"></div>
+
+          <div class="navBtns">
+            <button id="prevBtn" type="button">← 이전</button>
+            <button id="nextBtn" type="button">다음 →</button>
+          </div>
+        </div>
+
+        <div class="footer">* 재미를 위한 예시 화면입니다. 서비스화 시 고지/면책 문구를 더 명확히 넣는 것을 권장합니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- date ----------
+    const pad2 = (n) => String(n).padStart(2, "0");
+    const todayLocal = () => {
+      const d = new Date();
+      return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+    };
+    document.getElementById("todayBadge").textContent = `오늘: ${todayLocal()}`;
+
+    // ---------- seeded PRNG ----------
+    function xorshift32(seed){
+      let x = seed >>> 0;
+      return function(){
+        x ^= x << 13; x >>>= 0;
+        x ^= x >> 17; x >>>= 0;
+        x ^= x << 5;  x >>>= 0;
+        return (x >>> 0) / 4294967296;
+      };
+    }
+    function hashToUint32(str){
+      let h = 2166136261 >>> 0;
+      for (let i=0;i<str.length;i++){
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619) >>> 0;
+      }
+      return h >>> 0;
+    }
+    const clamp = (n,min,max)=>Math.max(min,Math.min(max,n));
+
+    // ---------- fortune text ----------
+    const COLORS = [
+      { name:"하늘색", hex:"#7aa2ff" }, { name:"라벤더", hex:"#b18cff" },
+      { name:"민트", hex:"#44d7b6" },  { name:"코랄", hex:"#ff7f6e" },
+      { name:"레몬", hex:"#ffd86e" },  { name:"오프화이트", hex:"#f2f5ff" },
+      { name:"네이비", hex:"#1c2a5a" }, { name:"버건디", hex:"#7a1f3a" }
+    ];
+    const KEYWORDS = ["정리","타이밍","대화","몰입","절제","도전","휴식","관계","집중","전환"];
+    const HEADLINES = [
+      "하나만 끝내도 충분히 잘한 하루예요. 가장 작은 것부터 완료해봐요.",
+      "오늘은 ‘속도’보다 ‘정확도’가 이득입니다. 체크 한 번 더!",
+      "대화의 키는 질문이에요. 먼저 물어보면 답이 따라옵니다.",
+      "새로운 것보다, 이미 가진 것을 다듬으면 성과가 커져요.",
+      "급할수록 돌아가세요. 천천히가 결국 빠릅니다.",
+      "마음이 흔들리면, ‘내가 통제할 수 있는 것’부터 잡아보세요."
+    ];
+    function scoreToLabel(score){
+      if (score >= 85) return "최고";
+      if (score >= 70) return "좋음";
+      if (score >= 55) return "무난";
+      if (score >= 40) return "주의";
+      return "조심";
+    }
+    function scoreText(score, domain){
+      const label = scoreToLabel(score);
+      const map = {
+        total: { 최고:"흐름이 아주 좋습니다. 큰 결정을 내리기에도 무리가 없어요.",
+                 좋음:"기분 좋은 일들이 이어집니다. 계획했던 것을 밀어붙여 보세요.",
+                 무난:"평이한 하루. 작은 성과를 차곡차곡 쌓기 좋습니다.",
+                 주의:"변수가 생길 수 있어요. 일정에 여유를 두세요.",
+                 조심:"무리하면 손해가 큽니다. 오늘은 안전운전이 답!" },
+        love:  { 최고:"대화가 잘 통하는 날. 먼저 한 마디 건네보면 분위기가 풀려요.",
+                 좋음:"호감 신호를 캐치하기 좋습니다. 가벼운 약속을 잡아보세요.",
+                 무난:"괜한 오해만 조심하면 무난합니다. 말투를 부드럽게!",
+                 주의:"감정 기복이 있을 수 있어요. 급한 결론은 내일로 미루기.",
+                 조심:"상대의 입장을 먼저 듣는 게 중요. 방어적으로 굴지 마세요." },
+        money: { 최고:"수익·절약 모두 운이 따릅니다. 필요한 구매는 오늘 처리!",
+                 좋음:"작은 이득이 있습니다. 지출은 체크리스트로 관리하면 좋아요.",
+                 무난:"큰돈 흐름은 평이. 고정비 점검하기 딱 좋은 날입니다.",
+                 주의:"충동구매 주의! '장바구니 보류'가 효과적이에요.",
+                 조심:"금전 거래/대출/보증은 피하는 편이 안전합니다." },
+        health:{ 최고:"컨디션이 좋습니다. 가벼운 유산소로 기분까지 업!",
+                 좋음:"몸이 가볍게 풀리는 날. 스트레칭 루틴을 유지해 보세요.",
+                 무난:"무난하지만 방심 금물. 수분 섭취만 챙겨도 차이가 납니다.",
+                 주의:"피로가 쌓이기 쉬워요. 카페인·야식 줄이기!",
+                 조심:"무리하면 탈이 납니다. '일찍 잠들기'가 최고의 보약." }
+      };
+      return map[domain][label] || "";
+    }
+
+    function makeFortune(birthStr){
+      const seed = hashToUint32(`${birthStr}|${todayLocal()}`);
+      const rand = xorshift32(seed);
+
+      const love   = Math.round(35 + rand()*60);
+      const money  = Math.round(35 + rand()*60);
+      const health = Math.round(35 + rand()*60);
+      const baseTotal = Math.round(35 + rand()*60);
+      const avg = (love + money + health) / 3;
+      const total = clamp(Math.round(baseTotal*0.5 + avg*0.5), 30, 98);
+
+      const color = COLORS[Math.floor(rand()*COLORS.length)];
+      const luckyNum = 1 + Math.floor(rand()*9);
+      const keyword = KEYWORDS[Math.floor(rand()*KEYWORDS.length)];
+      const headline = HEADLINES[Math.floor(rand()*HEADLINES.length)];
+
+      return {
+        total, love, money, health,
+        color, luckyNum, keyword, headline,
+        texts: {
+          total: scoreText(total, "total"),
+          love: scoreText(love, "love"),
+          money: scoreText(money, "money"),
+          health: scoreText(health, "health")
+        }
+      };
+    }
+
+    // ---------- validation ----------
+    function validate(yy,mm,dd){
+      if (!yy || !mm || !dd) return "생일을 모두 입력해 주세요.";
+      if (!/^\d{4}$/.test(yy)) return "연도는 4자리 숫자(YYYY)로 입력해 주세요.";
+      if (!/^\d{2}$/.test(mm) || !/^\d{2}$/.test(dd)) return "월/일은 2자리 숫자(MM/DD)로 입력해 주세요.";
+
+      const y = +yy, m = +mm, d = +dd;
+      if (y < 1900 || y > new Date().getFullYear()) return "연도 범위를 확인해 주세요.";
+      if (m < 1 || m > 12) return "월(MM)은 01~12 사이여야 합니다.";
+      if (d < 1 || d > 31) return "일(DD)을 확인해 주세요.";
+
+      const dateStr = `${yy}-${mm}-${dd}`;
+      const dt = new Date(dateStr + "T00:00:00");
+      if (Number.isNaN(dt.getTime())) return "유효한 날짜가 아닙니다.";
+      // real calendar check
+      if (dt.getFullYear() !== y || (dt.getMonth()+1) !== m || dt.getDate() !== d) return "달력에 존재하지 않는 날짜입니다.";
+
+      const today = new Date(todayLocal()+"T00:00:00");
+      if (dt.getTime() > today.getTime()) return "미래의 날짜는 입력할 수 없습니다.";
+      return null;
+    }
+
+    // ---------- UI helpers ----------
+    const errEl = document.getElementById("err");
+    const resultEl = document.getElementById("result");
+    const carousel = document.getElementById("carousel");
+    const dotsEl = document.getElementById("dots");
+    const headlineEl = document.getElementById("headline");
+
+    function showError(msg){
+      errEl.textContent = msg;
+      errEl.style.display = "block";
+      resultEl.style.display = "none";
+    }
+    function clearError(){
+      errEl.textContent = "";
+      errEl.style.display = "none";
+    }
+
+    function cardHTML(title, score, desc, extrasHTML=""){
+      return `
+        <div class="card" role="group" aria-label="${title} 카드">
+          <div class="cardTop">
+            <h2>${title}</h2>
+            <div class="score">${score}점 · ${scoreToLabel(score)}</div>
+          </div>
+          <div class="desc">${desc}</div>
+          ${extrasHTML ? `<div class="meta">${extrasHTML}</div>` : ``}
+        </div>
+      `;
+    }
+
+    function renderCards(f){
+      carousel.innerHTML = "";
+      dotsEl.innerHTML = "";
+
+      const extras = `
+        <div class="pill"><span class="dot" style="background:${f.color.hex}"></span>행운의 색: <b>${f.color.name}</b></div>
+        <div class="pill">행운의 숫자: <b>${f.luckyNum}</b></div>
+        <div class="pill">오늘의 키워드: <b>${f.keyword}</b></div>
+      `;
+
+      const cards = [
+        { title: "요약", score: f.total, desc: f.texts.total, extras: extras },
+        { title: "연애운", score: f.love, desc: f.texts.love },
+        { title: "재물운", score: f.money, desc: f.texts.money },
+        { title: "건강운", score: f.health, desc: f.texts.health }
+      ];
+
+      cards.forEach((c, idx)=>{
+        carousel.insertAdjacentHTML("beforeend", cardHTML(c.title, c.score, c.desc, c.extras || ""));
+        const dot = document.createElement("span");
+        dot.dataset.index = String(idx);
+        dot.addEventListener("click", ()=>scrollToIndex(idx));
+        dotsEl.appendChild(dot);
+      });
+
+      headlineEl.textContent = f.headline;
+      resultEl.style.display = "block";
+
+      // snap to first card
+      requestAnimationFrame(()=>scrollToIndex(0));
+      setActiveDot(0);
+    }
+
+    function getCardEls(){ return Array.from(carousel.querySelectorAll(".card")); }
+
+    function scrollToIndex(i){
+      const cards = getCardEls();
+      if (!cards[i]) return;
+      cards[i].scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    }
+
+    function currentIndex(){
+      const cards = getCardEls();
+      if (!cards.length) return 0;
+      const center = carousel.scrollLeft + carousel.clientWidth / 2;
+      let best = 0, bestDist = Infinity;
+      cards.forEach((el, i)=>{
+        const elCenter = el.offsetLeft + el.clientWidth/2;
+        const dist = Math.abs(elCenter - center);
+        if (dist < bestDist){ bestDist = dist; best = i; }
+      });
+      return best;
+    }
+
+    function setActiveDot(i){
+      Array.from(dotsEl.children).forEach((d, idx)=>{
+        d.classList.toggle("active", idx === i);
+      });
+    }
+
+    // update dots while scrolling (debounced)
+    let scrollTimer = null;
+    carousel.addEventListener("scroll", ()=>{
+      if (scrollTimer) clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(()=>{
+        setActiveDot(currentIndex());
+      }, 80);
+    });
+
+    document.getElementById("prevBtn").addEventListener("click", ()=>{
+      const i = currentIndex();
+      scrollToIndex(Math.max(0, i-1));
+    });
+    document.getElementById("nextBtn").addEventListener("click", ()=>{
+      const cards = getCardEls();
+      const i = currentIndex();
+      scrollToIndex(Math.min(cards.length-1, i+1));
+    });
+
+    // ---------- birth input UX ----------
+    const yyEl = document.getElementById("yy");
+    const mmEl = document.getElementById("mm");
+    const ddEl = document.getElementById("dd");
+
+    function onlyDigits(s){ return (s || "").replace(/[^\d]/g, ""); }
+
+    function handleInput(el, maxLen, nextEl){
+      el.addEventListener("input", ()=>{
+        const cleaned = onlyDigits(el.value).slice(0, maxLen);
+        el.value = cleaned;
+        if (cleaned.length === maxLen && nextEl) nextEl.focus();
+      });
+      el.addEventListener("keydown", (e)=>{
+        if (e.key === "Backspace" && el.value.length === 0){
+          const prev = el.dataset.prev ? document.getElementById(el.dataset.prev) : null;
+          if (prev){ prev.focus(); }
+        }
+        if (e.key === "Enter"){ document.getElementById("btn").click(); }
+      });
+      // paste support: if user paste YYYYMMDD or YYYY-MM-DD in any field
+      el.addEventListener("paste", (e)=>{
+        const text = (e.clipboardData || window.clipboardData).getData("text");
+        const digits = onlyDigits(text);
+        if (digits.length >= 8){
+          e.preventDefault();
+          yyEl.value = digits.slice(0,4);
+          mmEl.value = digits.slice(4,6);
+          ddEl.value = digits.slice(6,8);
+          ddEl.focus();
+        }
+      });
+    }
+
+    yyEl.dataset.prev = "";
+    mmEl.dataset.prev = "yy";
+    ddEl.dataset.prev = "mm";
+    handleInput(yyEl, 4, mmEl);
+    handleInput(mmEl, 2, ddEl);
+    handleInput(ddEl, 2, null);
+
+    // auto focus first
+    yyEl.focus();
+
+    // ---------- action ----------
+    document.getElementById("btn").addEventListener("click", ()=>{
+      const yy = yyEl.value, mm = mmEl.value, dd = ddEl.value;
+      const msg = validate(yy,mm,dd);
+      if (msg) return showError(msg);
+
+      clearError();
+      const birthStr = `${yy}-${mm}-${dd}`;
+      const fortune = makeFortune(birthStr);
+      renderCards(fortune);
+    });
+  </script>
 </body>
 </html>
